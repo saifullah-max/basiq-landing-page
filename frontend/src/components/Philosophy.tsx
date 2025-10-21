@@ -4,7 +4,7 @@ export default function Philosophy() {
   return (
     // The main section is dark purple/blue, matching the background of the image.
     // The 'py-20' provides vertical padding.
-    <section className="bg-[#190a33] py-20 text-white">
+    <section className="bg-[#190a33] py-20 text-white" id="about">
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12">
         {/* --- Left Column: What We Offer (Paid Advertising Focus) --- */}
         <div className="lg:pr-16">
