@@ -178,7 +178,8 @@ export default function CTA() {
     setStatus("loading");
 
     try {
-      const res = await fetch("http://localhost:5000/api/contact", {
+      const API_URL = import.meta.env.VITE_API_URL
+      const res = await fetch(`${API_URL}API_URLapi/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
