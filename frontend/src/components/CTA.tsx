@@ -161,6 +161,11 @@ interface FormData {
   message: string;
 }
 
+interface ApiResponse {
+  status: string;
+  message?: string;
+}
+
 type Status = "idle" | "loading" | "ok" | "error";
 
 export default function CTA() {
@@ -182,20 +187,39 @@ export default function CTA() {
       
       // Create AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout (increased for slow email servers)
 
-      const res = await fetch(`${API_URL}/api/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_URL}/api/contact`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+          signal: controller.signal,
+        });
+        // Clear timeout as soon as we get ANY response (success or error)
+        clearTimeout(timeoutId);
+      } catch (fetchError: unknown) {
+        // If fetch itself fails (timeout, network error, etc.)
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
 
-      // Clear timeout as soon as we get ANY response (success or error)
-      clearTimeout(timeoutId);
-
-      // Parse response body first (even for errors)
-      const data = await res.json();
+      // Parse response body (handle empty responses)
+      let data: ApiResponse;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await res.json() as ApiResponse;
+        } catch (jsonError) {
+          console.error("Failed to parse JSON response:", jsonError);
+          throw new Error("Invalid response from server");
+        }
+      } else {
+        // If response is not JSON, create a default error
+        const text = await res.text();
+        data = { status: 'error', message: text || 'Unknown error occurred' };
+      }
 
       if (!res.ok) {
         // Handle server errors (4xx, 5xx)

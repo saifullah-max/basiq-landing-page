@@ -52,12 +52,21 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
 
     try {
         console.log('Attempting to send email...');
-        const info = await transporter.sendMail({
+        
+        // Create a promise with timeout to prevent hanging
+        const emailPromise = transporter.sendMail({
             from: `"Audit Request" <${EMAIL_USER}>`,
             to: RECEIVER_EMAIL,
             subject: `NEW AUDIT REQUEST: ${name} from ${email}`,
             html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p>${message}</p>`,
         });
+
+        // Add overall timeout for email sending (45 seconds)
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Email sending timeout after 45 seconds')), 45000);
+        });
+
+        const info = await Promise.race([emailPromise, timeoutPromise]) as any;
         console.log('Email sent successfully:', info.messageId);
         return res.status(200).json({ status: 'ok', message: 'Audit request sent successfully!' });
     } catch (err: any) {
