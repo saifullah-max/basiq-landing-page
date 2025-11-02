@@ -59,7 +59,7 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
             html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p>${message}</p>`,
         });
         console.log('Email sent successfully:', info.messageId);
-        res.status(200).json({ status: 'ok', message: 'Audit request sent successfully!' });
+        return res.status(200).json({ status: 'ok', message: 'Audit request sent successfully!' });
     } catch (err: any) {
         console.error('Email sending error - Full error:', err);
         console.error('Email error details:', {
@@ -77,7 +77,7 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
             errorMessage = `Email error (${err.code}). Please check email configuration.`;
         }
         
-        res.status(500).json({ 
+        return res.status(500).json({ 
             status: 'error', 
             message: errorMessage 
         });
@@ -85,7 +85,7 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'Server is running' });
+    return res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
 const port = parseInt(PORT as string) || 5000;
