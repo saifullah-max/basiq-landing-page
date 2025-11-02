@@ -46,10 +46,10 @@ export default function Footer() {
           </div>
 
           {/* Additional Info */}
-          <div className="text-center md:text-right text-gray-400 text-sm">
+          {/* <div className="text-center md:text-right text-gray-400 text-sm">
             <p className="mb-2">IAG Online Services</p>
             <p>Company Number: 11178977</p>
-          </div>
+          </div> */}
         </div>
 
         {/* Bottom Bar */}
