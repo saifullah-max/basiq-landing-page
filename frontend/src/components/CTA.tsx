@@ -166,7 +166,7 @@ type Status = "idle" | "loading" | "ok" | "error";
 export default function CTA() {
   const [form, setForm] = useState<FormData>({ name: "", email: "", message: "" });
   const [status, setStatus] = useState<Status>("idle");
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible] = useState(true);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -179,21 +179,43 @@ export default function CTA() {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const res = await fetch(`${API_URL}/api/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
+        signal: controller.signal, // Add timeout signal
       });
 
+      clearTimeout(timeoutId); // Clear timeout if request succeeds
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
       const data = await res.json();
-      if (res.ok && data.status === "ok") {
+      if (data.status === "ok") {
         setStatus("ok");
         setForm({ name: "", email: "", message: "" });
       } else {
         setStatus("error");
       }
-    } catch {
-      setStatus("error");
+    } catch (error: unknown) {
+      console.error("Contact form error:", error);
+      // Handle timeout specifically
+      if (error instanceof Error && error.name === 'AbortError') {
+        setStatus("error");
+        // Show user-friendly message for timeout
+        setTimeout(() => {
+          alert("Request timed out. The server might be sleeping. Please try again in a moment.");
+        }, 100);
+      } else {
+        setStatus("error");
+      }
     }
   };
 

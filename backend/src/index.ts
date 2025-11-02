@@ -14,8 +14,21 @@ if (!EMAIL_USER || !EMAIL_PASS || !RECEIVER_EMAIL) {
 }
 
 const app = express();
-app.use(cors());
+
+// Improved CORS configuration
+app.use(cors({
+  origin: '*', // Allow all origins (or specify: ['https://basiq.netlify.app'])
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+}));
+
 app.use(express.json());
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -29,18 +42,23 @@ interface AuditRequest {
 }
 
 app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Response) => {
+    console.log('Received contact request:', { name: req.body.name, email: req.body.email });
     const { name, email, message } = req.body;
-    if (!name || !email || !message)
+    
+    if (!name || !email || !message) {
+        console.log('Missing required fields');
         return res.status(400).json({ status: 'error', message: 'Missing required fields' });
+    }
 
     try {
+        console.log('Attempting to send email...');
         const info = await transporter.sendMail({
             from: `"Audit Request" <${EMAIL_USER}>`,
             to: RECEIVER_EMAIL,
             subject: `NEW AUDIT REQUEST: ${name} from ${email}`,
             html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p>${message}</p>`,
         });
-        console.log('Email sent:', info.messageId);
+        console.log('Email sent successfully:', info.messageId);
         res.status(200).json({ status: 'ok', message: 'Audit request sent successfully!' });
     } catch (err: any) {
         console.error('Email sending error:', err.message || err);
