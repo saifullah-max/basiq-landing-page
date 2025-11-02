@@ -48,6 +48,12 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}/api/contact`);
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+const port = parseInt(PORT as string) || 5000;
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`API endpoint: /api/contact`);
 });
