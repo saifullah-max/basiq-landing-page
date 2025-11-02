@@ -61,8 +61,26 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
         console.log('Email sent successfully:', info.messageId);
         res.status(200).json({ status: 'ok', message: 'Audit request sent successfully!' });
     } catch (err: any) {
-        console.error('Email sending error:', err.message || err);
-        res.status(500).json({ status: 'error', message: 'Failed to send email.' });
+        console.error('Email sending error - Full error:', err);
+        console.error('Email error details:', {
+            code: err.code,
+            command: err.command,
+            response: err.response,
+            message: err.message
+        });
+        
+        // Provide more helpful error message
+        let errorMessage = 'Failed to send email.';
+        if (err.response) {
+            errorMessage = `Email service error: ${err.response}`;
+        } else if (err.code) {
+            errorMessage = `Email error (${err.code}). Please check email configuration.`;
+        }
+        
+        res.status(500).json({ 
+            status: 'error', 
+            message: errorMessage 
+        });
     }
 });
 

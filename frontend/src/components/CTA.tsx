@@ -188,33 +188,53 @@ export default function CTA() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-        signal: controller.signal, // Add timeout signal
+        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId); // Clear timeout if request succeeds
+      // Clear timeout as soon as we get ANY response (success or error)
+      clearTimeout(timeoutId);
+
+      // Parse response body first (even for errors)
+      const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        // Handle server errors (4xx, 5xx)
+        console.error(`Server error (${res.status}):`, data);
+        setStatus("error");
+        setTimeout(() => {
+          alert(`Error: ${data.message || 'Failed to send request. Please try again.'}`);
+        }, 100);
+        return;
       }
 
-      const data = await res.json();
       if (data.status === "ok") {
         setStatus("ok");
         setForm({ name: "", email: "", message: "" });
       } else {
         setStatus("error");
+        setTimeout(() => {
+          alert(data.message || "Something went wrong. Please try again.");
+        }, 100);
       }
     } catch (error: unknown) {
       console.error("Contact form error:", error);
-      // Handle timeout specifically
+      // Handle timeout specifically (only if it's an AbortError)
       if (error instanceof Error && error.name === 'AbortError') {
         setStatus("error");
-        // Show user-friendly message for timeout
         setTimeout(() => {
           alert("Request timed out. The server might be sleeping. Please try again in a moment.");
         }, 100);
+      } else if (error instanceof Error) {
+        // Handle other fetch errors (network errors, etc.)
+        setStatus("error");
+        setTimeout(() => {
+          alert("Network error. Please check your connection and try again.");
+        }, 100);
       } else {
         setStatus("error");
+        setTimeout(() => {
+          alert("An unexpected error occurred. Please try again.");
+        }, 100);
       }
     }
   };
