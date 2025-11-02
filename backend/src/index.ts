@@ -30,19 +30,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Try port 465 with SSL for better reliability
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    service: 'gmail',
     auth: {
         user: EMAIL_USER,
         pass: EMAIL_PASS,
     },
+    // Override with explicit settings
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    // Connection timeout settings
+    connectionTimeout: 10000, // 10 seconds to establish connection
+    greetingTimeout: 10000,   // 10 seconds for greeting
+    socketTimeout: 30000,      // 30 seconds for socket operations
     // Add these options for better reliability
-    pool: true,
-    maxConnections: 1,
-    maxMessages: 3,
-});
+    pool: false, // Disable pooling for better error handling
+    debug: true, // Enable debug logging
+    logger: true, // Enable logger
+} as any); // Type assertion needed for additional options
 
 interface AuditRequest {
     name: string;
@@ -69,8 +76,19 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
     try {
         console.log('Attempting to send email...');
         console.log('Using email:', EMAIL_USER);
+        console.log('Sending to:', RECEIVER_EMAIL);
         
-        // Increase timeout to 60 seconds and add connection options
+        // Try to verify connection first
+        try {
+            console.log('Verifying SMTP connection...');
+            await transporter.verify();
+            console.log('SMTP connection verified successfully');
+        } catch (verifyError: any) {
+            console.error('SMTP verification failed:', verifyError);
+            throw new Error(`SMTP connection failed: ${verifyError.message || verifyError.code || 'Unknown error'}`);
+        }
+        
+        // Send email with reduced timeout since we verified connection
         const emailPromise = transporter.sendMail({
             from: `"Audit Request" <${EMAIL_USER}>`,
             to: RECEIVER_EMAIL,
@@ -78,9 +96,9 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
             html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p>${message}</p>`,
         });
 
-        // Increase overall timeout to 60 seconds
+        // Reduced timeout to 30 seconds since connection is verified
         const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Email sending timeout after 60 seconds')), 60000);
+            setTimeout(() => reject(new Error('Email sending timeout after 30 seconds')), 30000);
         });
 
         const info = await Promise.race([emailPromise, timeoutPromise]) as any;
@@ -100,8 +118,10 @@ app.post('/api/contact', async (req: Request<{}, {}, AuditRequest>, res: Respons
         let errorMessage = 'Failed to send email.';
         if (err.code === 'EAUTH') {
             errorMessage = 'Email authentication failed. Please check EMAIL_USER and EMAIL_PASS.';
-        } else if (err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT') {
-            errorMessage = 'Email service connection timeout. Please try again later.';
+        } else if (err.code === 'ECONNECTION' || err.code === 'ETIMEDOUT' || err.message?.includes('timeout')) {
+            errorMessage = 'Email service connection timeout. Gmail SMTP may be blocked from this server. Consider using SendGrid, Resend, or Mailgun instead.';
+        } else if (err.code === 'ETIMEOUT') {
+            errorMessage = 'Connection to Gmail SMTP timed out. This may be a network/firewall issue on Render.';
         } else if (err.response) {
             errorMessage = `Email service error: ${err.response}`;
         } else if (err.message) {
